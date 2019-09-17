@@ -1,0 +1,23 @@
+***VULNHUB:NEZUKO:WRITEUP***
+
+ENUMERATION
+ * sudo nmap -v -sS -A -Pn -T5 -p- -oN boxScan.txt 192.168.56.102
+   * Port 22: OpenSSH
+   * Port 80: Apache
+   * Port 13337: WebMin
+
+ * dirb http://192.168.56.102/ /usr/share/wordlists/dirb/common.txt
+   * /index.html
+   * /robots.txt
+   * /server-status
+
+ * Manual Observation of Webpage
+   * Navigated to homepage. Did not see much information beyond a gif.
+   * Inspected webpage code. Did not see anything out of the ordinary.
+   * Attempted navigating to directories listed through Dirbuster. Found nothing promising.
+
+PLAN OF ATTACK
+ * Look for vulnerabilities in Port 13337 due to suspicious port number
+   * Could not successfully execute any exploits on vulnerable service WebMin
+ * Look for vulnerabilities in Port 80 due to number of vulnerabilities in Apache
+   * Still attempting to execute exploits on vulnerabilities
