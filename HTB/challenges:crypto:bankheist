@@ -1,0 +1,22 @@
+***HACKTHEBOX:BANKHEIST:WRITEUP***
+
+FIRST THOUGHTS
+ * Seems like an old flip phone texting scheme
+
+Tried a few online decoders (as it would be less tiring than manually decoding)
+ * Looked at output
+ * All meaningless
+ * Looked for real words
+ * Found GIHON (Jewish river)
+ * Realized this might not be the best route
+
+Began manually deciphering flag
+ * Starts becoming readable immediately
+ * Slowly decipher the text
+ * Get to the end
+
+Attempt to submit the flag
+ * Tried several different part of the ouput
+ * Ended up being a concious typo on the Author's behalf that we needed to submit
+
+Was successful

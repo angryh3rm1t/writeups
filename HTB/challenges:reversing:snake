@@ -1,0 +1,30 @@
+***HACKTHEBOX:SNAKE:WRITEUP***
+
+PLAN
+ * Find username
+ * Fine password
+
+FIND username
+ * Looked through code, tried 'slither'. Didn't work.
+ * Noticed that 'slither' was a variable, and that it was declared as several smaller variables
+ * Each smaller variable was declated as a gexidecimal value
+ * Converted each hex value to decimal, then concatinated it to get one string value
+ * Slither was set equal to "anaconda"
+ * Inputted it. It worked.
+
+FIND password
+ * Looked through the code
+ * Followed code logic
+ * Got chars array
+   * Decoded it to an int array
+   * Decoded it to a char array
+   * Password was accepted
+
+SUBMITTING
+ * Flag was not accepted as chars
+ * Googled it a bit
+ * Challenge author mentioned that you needed to double check the password checker
+ * After double checking, I realized that the password checker code was very buggy
+
+MOVING FORWARD
+ * In the process of editing the password checker code so I can re decrypt the password, and verify it's validity this time.
