@@ -21,3 +21,24 @@ PLAN OF ATTACK
    * Could not successfully execute any exploits on vulnerable service WebMin
  * Look for vulnerabilities in Port 80 due to number of vulnerabilities in Apache
    * Still attempting to execute exploits on vulnerabilities
+   * Could not find anything through this rabbit hole. 
+
+I decide to take a look at something suspicious i found when manually visiting Dirbuster directories
+ * Navigated to IPADDRESS/robots.txt
+ * I am presented with a string of text. No numbers. But ends with '===='
+ * At first glance I thought it was a md5 hash, and so dismissed this lead as useless. But upon further inspection, i realized the '====' must mean something. 
+ * Upon some research, I learn that this is a end marker for Base64 code. 
+ * I decide to decode the string with a Base64 decoder. Unfortunately it yields gibberish. 
+ * I then decide to decode the string with a Base32 decoder. This attempt is successful
+ * However the output is simply a hint telling me to try enumerating another service than this one.
+
+I decide now that I wanted to attempt to break into Port 13337 again. My gut tells me it's the correct direction
+ * I look for more exploits, but cannot get any to work. 
+ * At this point I allow myself to look at a guide. The guide at this point directs me to the first script I found - it turns out I had been using it incorrectly this entire time
+ * I follow the guide's usage of the script, and it executes correctly.
+ * However, this script simply tests for a vulnerablity in the service that allows for RCE. It must be modified to send a shell back to my attack box.
+ * I add a netcat call into a curl call.
+ * I start listening with netcat on my attack box. I then run the script.
+ * I am rewarded with a shell.
+
+PWNED
