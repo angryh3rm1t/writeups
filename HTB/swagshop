@@ -1,0 +1,107 @@
+HACKTHEBOX: SWAGSHOP
+WRITEUP
+JERRY KAPPIL
+7/15/19
+
+ENUMERATION:
+PORT SCANNING:
+Command: sudo nmap -v -sS -A -Pn -T5 -p- -oN swagshop.txt 10.10.10.140
+	22: OpenSSH
+	80: Apache
+	OS: Linux
+Command: sudo nmap -v -sU -T5 -oN swagshop-udp.txt 10.10.10.140
+	2000:  filtered cisco-sccp
+	2161: filtered apc-2161
+	20919: filtered unknown
+	21364: filtered unknown
+
+SERVICE ENUMERATION:
+	OpenSSH 7.2p2
+	Looked up ‘SSH 7.2’ in https://www.exploit-db.com/
+	Found potential exploits to use. Will plan to search potential exploits within MSF. 
+	Will save these results for later, should MSF exploit attemps prove unsuccessful.
+
+HTTP ENUMERATION:
+	Apache httpd 2.4.18
+	Passive Reconnaissance: Burp Suite
+		Setting up Burp Suite:
+			Firefox Config:
+				127.0.0.1:8080
+				Use this proxy server for all protocols
+				Download and import Burp CA Cert fmor http://burp
+			Burp Config:
+				Proxy > Intercept > Off
+			Firefox Config:
+				About:config
+				Security.tls.version.max → set to 3
+		Collect information
+	Active Reconnaissance: gobuster
+		gobuster dir -w /usr/share/wordlists/dirb/directory-list-2.3-medium.txt -u http://10.10.10.140/ -o dirb2Results.txt
+		Look through these directories
+		Found Magento
+			Inputted to searchsploit
+			Found exploits varied by version number, need to verify version number
+				Found date on website, googled it. Found a listing for an exploit that was outputted from searchploit query
+				Magento CE < 1.9.0.1 Authenticated
+				Realized Magento CE stood for Community Edition, this is not what I’m looking for
+			Googled full name from bottom “agento 2014 demo store”
+				Found an ecommerce exploit on google. It is also in my searchsploit output. This is what I want.
+				Magento eCommerce - Remote Code Execut | exploits/xml/webapps/37977.py
+				This will give me admin creds
+EXPLOITATION:
+	Exploit attempt 1: remote code execution: 37977.py
+		Learned how the code worked. Executed. Failed. Tried several times, but don’t know why. Moving on.
+	Exploit attempt 2: Local File Disclos | exploits/php/webapps/19793.txt
+		Less comfortable with this type of exploit, so will go back to it if I must
+	Exploit attempt 3: CEauth.py
+		Can’t figure out how this type of exploit works, so move on for now
+	Exploit attempt 4: Magento 1.2 - '/app/code/core/Mage/Admin/Model/Session.php?login['U | exploits/php/webapps/32808.txt
+		I recognize this directory from my dirbuster output
+		I attempt to reach this directory through the browser, i am successful.
+		I believe this is the path I should take.
+		Failed. Found the exact version (finally) of Magento. It was v1.9.0.0. This is not a valid attack
+	Exploit attempt 5: Magento < 2.0.6 - Arbitrary Unserialize / Arbitrary Write File
+		This should be effective, as I am now confident of the version number of software. The only hurdle should be proper execution of the exploit
+		After several attempts, seems unsuccessful.
+		This exploit depends on finding a GET request, which never seems to appear during the indicated time
+		May return to this, as [based on the information i’ve accumulated] should be successful based off the version number…
+	Exploit attempt 6:  remote code execution: 37977.py
+		Tried it again
+		Realized the path i was attempted wasn’t working in the browser
+		Server overload error
+		Kept on 
+		Trying to enter through browser
+		When the broswer let me in, i ran the exploit
+		SUCCESSFUL
+			Creds created: forme, forme
+
+PROGRESS STATUS: Have credentials for the admin panel of the web server. Goal is to get read access to the file directory
+
+PLAN MOVING FORWARD:
+Current status: admin creds for web console
+	plan: Use Magento Connect to upload php file
+		Magento Connect stopped being a working link
+		Unsure as to why, but will simply have to work with this new reality
+	Plan: searchsploit CVEs
+		Magento 1.2 - '/app/code/core/Mage/Adm | exploits/php/webapps/32808.txt
+		Magento 1.2 - '/app/code/core/Mage/Adm | exploits/php/webapps/32809.txt
+		Magento 1.2 - 'downloader/index.php' C | exploits/php/webapps/32810.txt
+		Magento < 2.0.6 - Arbitrary Unserializ | exploits/php/webapps/39838.php
+		Magento CE < 1.9.0.1 - (Authenticated) | exploits/php/webapps/37811.py
+			Cant figure out script
+		Magento Server MAGMI Plugin - Multiple | exploits/php/webapps/35996.txt
+			Not applicable
+		Magento Server MAGMI Plugin 0.7.17a -  | exploits/php/webapps/35052.txt
+			patched
+		Magento eCommerce - Local File Disclos | exploits/php/webapps/19793.txt
+			patched
+		Magento eCommerce - Remote Code Execut | exploits/xml/webapps/37977.py
+		eBay Magento 1.9.2.1 - PHP FPM XML eXt | exploits/php/webapps/38573.txt
+		eBay Magento CE 1.9.2.1 - Unrestricted | exploits/php/webapps/38651.txt
+	Plan: sql inject
+		Found a field that contains SQL data
+		Researching a method that will allow me to leverage this...
+	Plan: get/post attack
+	Plan: xss
+
+
