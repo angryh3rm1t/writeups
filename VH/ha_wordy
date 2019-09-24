@@ -1,0 +1,31 @@
+***VULNHUB:HA_WORDY:WRITEUP***
+
+ENUMERATION
+ * netdiscover
+   * target IP address: 192.168.56.104
+ * Manual Observation through Browser
+   * Gives default Apache splashscreen
+   * Tried navigating to /admin, /logs, /index.php, /robots.txt. No success with any of these.
+ * sudo nmap -v -sS -A -Pn -T5 -p- -oN scan.txt 192.168.56.104 
+   * Port 80: Apache 2.4.29
+   * OS: Linux (Version is unconfirmed)
+ * dirb http://192.168.56.104 /usr/share/wordlist/dirb/common.txt
+   * Found several directories
+   * Main parents branches: javascript, wordpress
+ * Manual Observation through Browser
+   * Navigated to /wordpress, and was greeted with a generic vulnerable webapp. 
+     * Several links throughout the page
+     * A search bar input field exists
+     * A comment input field exists
+     * A login input field exists
+   * Navigated to /javascript, however was told I didn't have permission to access this page
+     * Will have to come back to this...
+
+TAKEAWAYS
+ * Seems that this box is strictly a webapp attack challenge. No ports other than 80 are open. Just is a vulnerable wordpress page, and a suspicioud javascript directory.
+
+ATTACKING /WORDPRESS
+ * sqlmap -u "http://192.168.56.104/wordpress/?s*=hi" --batch --level 5
+   * Output told me that no injected parameters were acceptable exploits
+   * I believe the issue is the url I'm providing it.
+   * 
