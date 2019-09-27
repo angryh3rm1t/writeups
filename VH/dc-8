@@ -1,0 +1,50 @@
+***VULNHUB:DC-8:WRITEUP***
+
+ENUMERATION
+ * netdiscover -r 192.168.56.0/24
+   * 192.168.56.106
+ * sudo nmap -v -sS -A -Pn -T5 -p- -oN scan.txt 192.168.56.106 
+   * Port 22 OpenSSH 7.4p1 Debian 10+deb9u1 (protocol 2.0)
+   * Port 80 Apache httpd, Drupal 7
+   * OS: Linux 3.x|4.x
+ * dirb http://192.168.56.106/ /usr/share/wordlist/dirb/common.txt -o dirb
+   * /includes
+   * /misc
+   * /modules
+   * /profiles
+   * /scripts
+   * /sites
+   * /themes
+   * and more subdirectories
+ * Manual Observation through Browser
+   * Through benign user interaction (clicking on links):
+     * Three webpages accessable through site links:
+       * Welcome Page
+       * About Us
+       * Contact Us
+     * Welcome Page and About Us just have basic text on the screen. Nothing intersting seems to be going on. 
+     * Contact Us page has input fields. Should be useful later.
+   * Through typing into URL:
+     * Do not have permission to navigate to main directories outputted from dirb results
+     * robots.txt works
+     * There are too many ouputs listed from dirb to try them all, and no other files/directories stand out, so I decide to move on
+
+MOVING FORWARD
+ * Seems like Port 22 might be the end goal since that's where MFA is implemented. However I don't immediately see anything vulnerable with it. More research needs to be done on if it's version has an vulnerabilities
+ * The brightest path right now appears to be enumerating and testing out navigating throughout the website through the browser.
+
+ENUMERATION
+ * Analyzed robots.txt 
+   * Led me to find /CHANGELOG.txt
+ * /CHANGELOG.txt gave me the exact version number of the Drupal server software
+   * This is the most up to date software available. 
+   * No vulnerabilities I could find through research
+ * Checked OpenSSH 7.4p1 vulnerabilities 
+   * No critical vulnerabilities.
+   * 2 low level vulns exist, which allow viewing of usernames and submitting zero length files.
+ * This tells me that I can't rely on a common vulnerability to exploit in either SSH or HTTP
+ * The only attack vectors I see at this point are:
+   * Searching through directories I can access through the browser
+   * Attackign the site through user input fields left behind in the 'Contact Us' webpage.
+
+
