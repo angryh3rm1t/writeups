@@ -1,6 +1,6 @@
 ***VULNHUB:DC-8:WRITEUP***
 
-ENUMERATION
+ENUMERATION (GENERAL)
  * netdiscover -r 192.168.56.0/24
    * 192.168.56.106
  * sudo nmap -v -sS -A -Pn -T5 -p- -oN scan.txt 192.168.56.106 
@@ -29,11 +29,11 @@ ENUMERATION
      * robots.txt works
      * There are too many ouputs listed from dirb to try them all, and no other files/directories stand out, so I decide to move on
 
-MOVING FORWARD
+TAKEAWAYS
  * Seems like Port 22 might be the end goal since that's where MFA is implemented. However I don't immediately see anything vulnerable with it. More research needs to be done on if it's version has an vulnerabilities
  * The brightest path right now appears to be enumerating and testing out navigating throughout the website through the browser.
 
-ENUMERATION
+ENUMERATION (BROWSER)
  * Analyzed robots.txt 
    * Led me to find /CHANGELOG.txt
  * /CHANGELOG.txt gave me the exact version number of the Drupal server software
@@ -43,8 +43,109 @@ ENUMERATION
    * No critical vulnerabilities.
    * 2 low level vulns exist, which allow viewing of usernames and submitting zero length files.
  * This tells me that I can't rely on a common vulnerability to exploit in either SSH or HTTP
+
+TAKEAWAYS
  * The only attack vectors I see at this point are:
    * Searching through directories I can access through the browser
-   * Attackign the site through user input fields left behind in the 'Contact Us' webpage.
+   * Attacking the site through user input fields left behind in the 'Contact Us' webpage. 
+     * Perhaps using sqlmap
 
+ENUMERATION (BROWSER)
+ * Attempted to navigate into every main directory. But was unsuccessful. 
+   * Only successes were made through navigating to individual files listed at the main directory (as documented in the robots.txt file)
+   * Useful files
+     * CHANGELOG.txt
+       * version = Drupal 7.67
+     * various install.txt files
+     * LICENSE.txt
+     * MAINTAINERS.txt
+     * xcmlrpc.php
+       * "XML-RPC sercer accepts POST requests only."
+   * Disallowed files
+     * most .php files
+     * user login and registration directories
+       * may be useful to gain access to in the future.
+ * sqlmap targeting the website
+   * sqlmap -u " http://192.168.56.106/node/3/*?sid=3&token=0cfb1a96acb58376169c9234dc2ceba2" --batch --level 5
+   * "All tested parameters do not appear to be injectable..."
 
+TAKEAWAYS
+ * Seems like the most vulnerable piece of this system is xmlrpc.php
+ * It appears that with this enabled, Brute Force attacks can be executed, but require a fraction of the traffic. Allowing them to slip under the radar.
+ * I will investigate this further:
+
+ATTACK: XML RPC BRUTE FORCE
+ * Online resources
+   * https://blog.sucuri.net/2015/10/brute-force-amplification-attacks-against-wordpress-xmlrpc.html
+   * https://medium.com/@the.bilal.rizwan/wordpress-xmlrpc-php-common-vulnerabilites-how-to-exploit-them-d8d3c8600b32
+   * https://null-byte.wonderhowto.com/how-to/gain-control-wordpress-by-exploiting-xml-rpc-0174864/
+   * https://github.com/1N3/Wordpress-XMLRPC-Brute-Force-Exploit
+ * Attack Sequence
+   * Set up Burp Suite Proxy
+   * Navigated to /xmlrpc.php
+   * Sent this traffic to Burp Repeater.
+   * Edits
+     * Made it a POST request
+     * Added HTML code including "system.listMethods"
+   * Learned possible methods to send to server
+     * getCapabilities, listMethods, methodHelp, methodSignature, multicall
+     * Sent each method in to learn about their usage.
+ * While multicall is useful, there is no other method I can call that will require credential parameters.
+ * Meaning, I could DDOS this server if I wanted to, but I could not Brute Force myself in with this information.
+ * This attack does not seem to be what I'm looking for
+
+ENUMERATION (SSH MFA)
+ * Researched SSH MFA
+   * Typically done through installing 'google-authenticator'
+   * Various other third party solutions
+ * Key word asked for when ssh-ing in: 
+   * 'Verification Code'
+ * Entered 'ssh IPADDRESS -v'
+   * Seems that I can gain access through either Public Key or Keyboard Interaction
+   * Public Key refers to my Kali Key being in the server ssh_config file
+   * Keyboard Interaction refers to knowing the 'Verification Code'
+ * Attemped to put ssh_host_rsa_key.pub on the server
+   * This is a Proof-Of-Concept. Will I be able to do this with just a password? It may be possible to therefore MFA.
+   * I am prompted with a Verification Code. This method does not bypass MFA.
+ * Entered 'ssh IPADDRESS -v' 
+   * Upon failing authentication, I noticed it listed the two factors of authentication:
+   * publickey, keyboard-interactive
+     * publickey --> SSH key
+     * keyboard-interactive --> verification code
+   * Now we know exactly what is needed through MFA to enter this system:
+     * SSH public key needs to be within server
+     * Verification code through MFA program (possibly google-authenticator)
+     * No password is needed
+
+THOUGHTS
+ * MFA is implemented in SSH. Requires Verfication Code and SSH PubKey.
+ * Verification requires another device. The only thing given in this environment is the browser. So I look at this some more.
+ * Play around some more. Realize that there are URL SQL injects available. Will investigate more.
+ * Possible that there is some sort of keys to the kingdom stored in the database linked to the web server, and I may be able to access this database through the vulnerable part of the website I just noticed.
+
+ENUMERATION (SQLMAP)
+ * Found URL that was injectable.
+ * Entered into sqlmap
+   * Enumerated Databases, Tables, and Columns.
+   * Looked around as much as possible to gain information that I needed.
+ * At this point I was tired. I wasn't sure what I was looking for, but I knew that SQL injection was the best route to the flag.
+ * I decided to throw in the towel at this point and look at a guide, as I've learned a lot, but I couldn't spend too much time on this, especially if it was just to serve my ego.
+
+ENUMERATION
+ * sqlmap
+   * Within the d7db database, there is a table labelled Users. 
+   * Within this table, there are two users, with hashed passwords.
+   * Passwords are decrypted using Jack the Ripper.
+ * Browser
+   * Found a site lablled User through dirb
+   * Go here and find a login prompt. Enter gained credentials here.
+   * See that I can edit and submit forms.
+   * See that I can change input style to be php
+   * Entered a reverse shell php script
+ * Reverse Shell
+   * Use netcat to enter the server.
+   * Use python script to get proper shell
+   * Look up and execute a privelage escalation php script.
+   * cat /root/flag.txt
+
+BOX IS OWNED
